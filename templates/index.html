@@ -553,9 +553,22 @@
     setTimeout(() => setProgState('prog-save', 'active'), 5600);
 
     try {
-      const res  = await fetch("/upload", { method: "POST", body: form });
+      const res  = await fetch("/upload", {
+        method: "POST",
+        body: form,
+        credentials: 'same-origin'  // asegura envío de cookie de sesión
+      });
       const data = await res.json();
-      setProgState('prog-save', 'done');
+
+      // Si la validación falla, marcar los pasos pendientes como error
+      if (!data.ok && data.validacion_fallida) {
+        setProgState('prog-doc', 'error');
+        setProgState('prog-face', 'error');
+        setProgState('prog-save', 'error');
+      } else {
+        setProgState('prog-save', 'done');
+      }
+
       setTimeout(() => {
         mostrarResultado(data);
         if (data.ok) cargarHistorial();
@@ -592,18 +605,23 @@
     const el = document.getElementById("result");
     if (!data.ok) {
       const errs = data.errores || [data.error || 'Error desconocido'];
+      const esValidacion = data.validacion_fallida === true;
+      const titulo = esValidacion ? 'Archivos no válidos' : 'Error en el Proceso';
+      const seccion = esValidacion ? 'PROBLEMAS DETECTADOS' : 'ERRORES DETECTADOS';
       el.innerHTML = `
         <div class="classif-banner error">
           <div class="classif-icon">!</div>
-          <div><div class="classif-label">ESTADO</div><div class="classif-title">Error en el Proceso</div></div>
+          <div><div class="classif-label">ESTADO</div><div class="classif-title">${titulo}</div></div>
         </div>
         <div class="result-body">
           <div class="result-section">
-            <div class="section-title">ERRORES DETECTADOS</div>
+            <div class="section-title">${seccion}</div>
             <ul class="error-list">${errs.map(e => `<li>${e}</li>`).join('')}</ul>
           </div>
         </div>`;
-      el.style.display = "block"; return;
+      el.style.display = "block";
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
     }
 
     const meta = clasifMeta(data.clasificacion);
@@ -702,7 +720,7 @@
   // ── History ────────────────────────────
   async function cargarHistorial() {
     try {
-      const res  = await fetch("/solicitudes");
+      const res  = await fetch("/solicitudes", { credentials: 'same-origin' });
       const data = await res.json();
       if (!data.total) return;
       const hc  = document.getElementById("history-card");
@@ -713,7 +731,7 @@
       // Fetch details for last 5
       const recientes = data.ids.slice(-5).reverse();
       const detalles = await Promise.all(
-        recientes.map(id => fetch(`/solicitud/${id}`).then(r => r.json()).catch(() => null))
+        recientes.map(id => fetch(`/solicitud/${id}`, { credentials: 'same-origin' }).then(r => r.json()).catch(() => null))
       );
       hl.innerHTML = detalles.map((d, i) => {
         const meta = clasifMeta(d?.clasificacion || 'ERROR');
@@ -734,7 +752,7 @@
 
   async function verDetalle(sid) {
     try {
-      const res  = await fetch(`/solicitud/${sid}`);
+      const res  = await fetch(`/solicitud/${sid}`, { credentials: 'same-origin' });
       const data = await res.json();
       mostrarResultado({ ok: true, ...data });
     } catch(e) {}
