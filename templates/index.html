@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KYC — Verificación de Identidad</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #07080a;
+    --surface:  #0e1014;
+    --surface2: #141720;
+    --border:   #1c2030;
+    --border2:  #252d40;
+    --accent:   #3b82f6;
+    --accent-lo:#1e3a5f;
+    --success:  #22c55e;
+    --warn:     #f59e0b;
+    --error:    #ef4444;
+    --text1:    #e8ecf2;
+    --text2:    #7a8899;
+    --text3:    #3a4455;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text1);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 52px 16px 100px;
+  }
+
+  /* ── Scanline overlay ─────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.06) 2px, rgba(0,0,0,.06) 4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ───────────────────────────── */
+  .header {
+    width: 100%;
+    max-width: 580px;
+    margin-bottom: 40px;
+    position: relative;
+    z-index: 1;
+  }
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 24px rgba(59,130,246,.35);
+  }
+  .logo-mark svg { width: 18px; height: 18px; }
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.15em;
+  }
+  .logo-status {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--success);
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pulse-dot {
+    width: 6px; height: 6px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.4); }
+    50% { opacity: .7; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  }
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 10px;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .subtitle {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.7;
+    font-family: var(--mono);
+    font-weight: 400;
+  }
+
+  /* ── Card base ────────────────────────── */
+  .card {
+    width: 100%;
+    max-width: 580px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Step dots ────────────────────────── */
+  .steps { display: flex; gap: 6px; margin-bottom: 28px; align-items: center; }
+  .step-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border2);
+    transition: all .3s;
+  }
+  .step-dot.active { background: var(--accent); width: 22px; border-radius: 3px; box-shadow: 0 0 8px rgba(59,130,246,.5); }
+  .step-dot.done   { background: var(--success); }
+  .step-label { margin-left: 10px; font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; }
+
+  /* ── Field ────────────────────────────── */
+  .field-group { margin-bottom: 20px; }
+  .field-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 8px;
+    letter-spacing: 0.12em;
+  }
+  .field-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--text1);
+    font-family: var(--sans);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+  .field-input::placeholder { color: var(--text3); }
+
+  /* ── Separator ────────────────────────── */
+  .separator { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .sep-line { flex: 1; height: 1px; background: var(--border); }
+  .sep-text { font-size: 10px; color: var(--text3); font-family: var(--mono); letter-spacing: 0.1em; }
+
+  /* ── Upload zones ─────────────────────── */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: 12px;
+    padding: 24px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    background: transparent;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(59,130,246,.04); }
+  .upload-zone.has-file { border-style: solid; border-color: var(--success); background: rgba(34,197,94,.04); }
+  .upload-zone.dragover { border-color: var(--accent); background: rgba(59,130,246,.08); transform: scale(1.02); }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .zone-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    transition: background .2s;
+  }
+  .upload-zone.has-file .zone-icon { background: rgba(34,197,94,.15); }
+  .zone-icon svg { width: 18px; height: 18px; }
+  .zone-label { font-size: 12px; font-weight: 600; color: var(--text1); margin-bottom: 3px; letter-spacing: 0.03em; }
+  .zone-hint  { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+  .zone-filename { font-size: 10px; color: var(--success); font-family: var(--mono); margin-top: 6px; word-break: break-all; display: none; }
+  .upload-zone.has-file .zone-filename { display: block; }
+  .upload-zone.has-file .zone-hint { display: none; }
+  .preview-img { width: 60px; height: 42px; object-fit: cover; border-radius: 6px; margin: 8px auto 0; display: none; border: 1px solid var(--border2); }
+  .upload-zone.has-file .preview-img { display: block; }
+
+  /* ── Submit button ────────────────────── */
+  .btn-submit {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 20px rgba(59,130,246,.3);
+  }
+  .btn-submit:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(59,130,246,.4); }
+  .btn-submit:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-submit .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+  .btn-submit.loading .spinner { display: block; }
+  .btn-submit.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Progress steps during processing ─── */
+  .progress-steps { display: none; margin-top: 20px; }
+  .progress-steps.visible { display: block; }
+  .prog-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    transition: color .3s;
+  }
+  .prog-item:last-child { border-bottom: none; }
+  .prog-item.active { color: var(--text2); }
+  .prog-item.done   { color: var(--success); }
+  .prog-item.error  { color: var(--error); }
+  .prog-icon { width: 16px; text-align: center; }
+
+  /* ── Result panel ─────────────────────── */
+  .result { width: 100%; max-width: 580px; display: none; animation: fadeUp .4s ease; position: relative; z-index: 1; }
+
+  /* Classification badge */
+  .classif-banner {
+    border-radius: 14px 14px 0 0;
+    padding: 22px 28px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .classif-banner.aprobada { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); border-bottom: none; }
+  .classif-banner.revision { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); border-bottom: none; }
+  .classif-banner.rechazada, .classif-banner.error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25); border-bottom: none; }
+
+  .classif-icon { font-size: 28px; }
+  .classif-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+    opacity: .7;
+  }
+  .classif-banner.aprobada .classif-label { color: var(--success); }
+  .classif-banner.revision .classif-label { color: var(--warn); }
+  .classif-banner.rechazada .classif-label, .classif-banner.error .classif-label { color: var(--error); }
+  .classif-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .classif-banner.aprobada .classif-title { color: #4ade80; }
+  .classif-banner.revision .classif-title { color: #fbbf24; }
+  .classif-banner.rechazada .classif-title, .classif-banner.error .classif-title { color: #f87171; }
+
+  .conf-bar-wrap { margin-left: auto; text-align: right; min-width: 80px; }
+  .conf-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+  .conf-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; margin-top: 2px; }
+  .conf-bar { width: 80px; height: 4px; background: var(--border2); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 2px; transition: width .8s ease; }
+  .aprobada .conf-fill { background: var(--success); }
+  .revision .conf-fill { background: var(--warn); }
+  .rechazada .conf-fill, .error .conf-fill { background: var(--error); }
+
+  /* Result body */
+  .result-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    overflow: hidden;
+  }
+
+  .result-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .result-section:last-child { border-bottom: none; }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text3);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .result-item { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .result-item-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 0.1em; margin-bottom: 4px; }
+  .result-item-value { font-size: 13px; color: var(--text1); word-break: break-word; }
+  .result-item-conf  { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+  .result-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    font-size: 12px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-key   { color: var(--text2); font-family: var(--mono); font-size: 11px; }
+  .result-value { font-family: var(--mono); font-size: 11px; color: var(--text1); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .badge-ok   { background: rgba(34,197,94,.15); color: #4ade80; }
+  .badge-warn { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .badge-err  { background: rgba(239,68,68,.15);  color: #f87171; }
+
+  .error-list { padding: 12px 16px; background: rgba(239,68,68,.06); border-radius: 8px; }
+  .error-list li { font-family: var(--mono); font-size: 11px; color: #f87171; margin-bottom: 4px; list-style: none; }
+  .error-list li::before { content: '✗ '; }
+
+  /* ── History ──────────────────────────── */
+  .history-card {
+    width: 100%;
+    max-width: 580px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .history-title  { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.12em; }
+  .history-count  { font-family: var(--mono); font-size: 11px; color: var(--accent); background: var(--accent-lo); padding: 3px 8px; border-radius: 4px; }
+  .history-list   { display: flex; flex-direction: column; gap: 4px; }
+  .history-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 8px; background: var(--bg);
+    font-family: var(--mono); font-size: 11px; color: var(--text2);
+    cursor: pointer; transition: background .2s;
+    animation: fadeUp .2s ease;
+  }
+  .history-item:hover { background: var(--surface2); color: var(--text1); }
+  .history-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-ok   { background: var(--success); }
+  .dot-warn { background: var(--warn); }
+  .dot-err  { background: var(--error); }
+  .history-id   { color: var(--text1); }
+  .history-class { margin-left: auto; font-size: 9px; letter-spacing: 0.08em; }
+
+  .new-btn {
+    background: transparent; border: 1px solid var(--border2);
+    border-radius: 8px; padding: 8px 16px; font-size: 12px;
+    font-family: var(--sans); font-weight: 600;
+    color: var(--text2); cursor: pointer; margin-top: 14px;
+    width: 100%; transition: all .2s;
+  }
+  .new-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Scrollbar ────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-row">
+    <div class="logo-mark">
+      <svg viewBox="0 0 18 18" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+        <rect x="1.5" y="3" width="15" height="10.5" rx="1.5"/>
+        <circle cx="5.5" cy="8.25" r="1.75"/>
+        <line x1="8.5" y1="6.5" x2="14" y2="6.5"/>
+        <line x1="8.5" y1="9.5" x2="14" y2="9.5"/>
+      </svg>
+    </div>
+    <span class="logo-text">KYC · ONBOARDING DIGITAL</span>
+    <div class="logo-status"><div class="pulse-dot"></div>SISTEMA ACTIVO</div>
+  </div>
+  <h1>Verificación de <em>identidad</em></h1>
+  <p class="subtitle">Sube cédula y selfie. Vamos a verificarte.</p>
+</div>
+
+<div class="card">
+  <div class="steps">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+    <span class="step-label" id="step-label">CARGA DE DOCUMENTOS</span>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label">NOMBRE DEL SOLICITANTE (OPCIONAL)</label>
+    <input type="text" class="field-input" id="nombre" placeholder="Ej. Juan Pérez">
+  </div>
+
+  <div class="separator"><div class="sep-line"></div><span class="sep-text">DOCUMENTOS</span><div class="sep-line"></div></div>
+
+  <div class="upload-grid">
+    <div class="upload-zone" id="zone-cedula"
+         ondragover="onDrag(event,'zone-cedula')" ondragleave="offDrag('zone-cedula')" ondrop="onDrop(event,'cedula')">
+      <input type="file" id="input-cedula" accept=".png,.jpg,.jpeg,.webp" onchange="onFile(this,'cedula')">
+      <div class="zone-icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="var(--text2)" stroke-width="1.5" stroke-linecap="round">
+          <rect x="1.5" y="3" width="15" height="10.5" rx="1.5"/>
+          <circle cx="5.5" cy="8.25" r="1.75"/>
+          <line x1="8.5" y1="6.75" x2="14" y2="6.75"/>
+          <line x1="8.5" y1="9.75" x2="14" y2="9.75"/>
+        </svg>
+      </div>
+      <div class="zone-label">Cédula</div>
+      <div class="zone-hint">PNG / JPG / WEBP</div>
+      <div class="zone-filename" id="name-cedula"></div>
+      <img class="preview-img" id="prev-cedula" alt="">
+    </div>
+
+    <div class="upload-zone" id="zone-selfie"
+         ondragover="onDrag(event,'zone-selfie')" ondragleave="offDrag('zone-selfie')" ondrop="onDrop(event,'selfie')">
+      <input type="file" id="input-selfie" accept=".png,.jpg,.jpeg,.webp" onchange="onFile(this,'selfie')">
+      <div class="zone-icon">
+        <svg viewBox="0 0 18 18" fill="none" stroke="var(--text2)" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="9" cy="7" r="3"/>
+          <path d="M2 15c0-3.314 3.134-6 7-6s7 2.686 7 6"/>
+        </svg>
+      </div>
+      <div class="zone-label">Selfie</div>
+      <div class="zone-hint">PNG / JPG / WEBP</div>
+      <div class="zone-filename" id="name-selfie"></div>
+      <img class="preview-img" id="prev-selfie" alt="">
+    </div>
+  </div>
+
+  <button class="btn-submit" id="btn" onclick="enviar()" disabled>
+    <span class="spinner"></span>
+    <span class="btn-text">Procesar solicitud →</span>
+  </button>
+
+  <div class="progress-steps" id="progress-steps">
+    <div class="prog-item" id="prog-upload"><span class="prog-icon">○</span> Subiendo imágenes a Blob Storage…</div>
+    <div class="prog-item" id="prog-doc"><span class="prog-icon">○</span> Document Intelligence extrayendo campos…</div>
+    <div class="prog-item" id="prog-face"><span class="prog-icon">○</span> Face API comparando rostros…</div>
+    <div class="prog-item" id="prog-save"><span class="prog-icon">○</span> Guardando resultado JSON en Blob Storage…</div>
+  </div>
+</div>
+
+<div class="result" id="result"></div>
+
+<div class="history-card" id="history-card" style="display:none">
+  <div class="history-header">
+    <span class="history-title">SOLICITUDES REGISTRADAS</span>
+    <span class="history-count" id="history-count">0</span>
+  </div>
+  <div class="history-list" id="history-list"></div>
+  <button class="new-btn" onclick="resetForm()">+ Nueva solicitud</button>
+</div>
+
+<script>
+  const files = { cedula: null, selfie: null };
+
+  // ── File handling ──────────────────────
+  function onFile(input, tipo) {
+    const file = input.files[0];
+    if (!file) return;
+    files[tipo] = file;
+    document.getElementById(`zone-${tipo}`).classList.add("has-file");
+    document.getElementById(`name-${tipo}`).textContent = file.name;
+    const prev = document.getElementById(`prev-${tipo}`);
+    prev.src = URL.createObjectURL(file);
+    updateDots(); checkBtn();
+  }
+  function onDrag(e, id) { e.preventDefault(); document.getElementById(id).classList.add("dragover"); }
+  function offDrag(id)   { document.getElementById(id).classList.remove("dragover"); }
+  function onDrop(e, tipo) {
+    e.preventDefault(); offDrag(`zone-${tipo}`);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const input = document.getElementById(`input-${tipo}`);
+    const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+    onFile(input, tipo);
+  }
+  function checkBtn() { document.getElementById("btn").disabled = !(files.cedula && files.selfie); }
+  function updateDots() {
+    const d1 = document.getElementById("dot1");
+    const d2 = document.getElementById("dot2");
+    const d3 = document.getElementById("dot3");
+    const lbl = document.getElementById("step-label");
+    const hasCed = !!files.cedula, hasSel = !!files.selfie;
+    d1.className = "step-dot " + (hasCed || hasSel ? "done" : "active");
+    d2.className = "step-dot " + (hasCed && hasSel ? "done" : (hasCed || hasSel ? "active" : ""));
+    d3.className = "step-dot " + (hasCed && hasSel ? "active" : "");
+    lbl.textContent = hasCed && hasSel ? "LISTO PARA PROCESAR" : hasCed || hasSel ? "SUBE EL OTRO DOCUMENTO" : "CARGA DE DOCUMENTOS";
+  }
+
+  // ── Progress indicator ─────────────────
+  function setProgState(id, state) {
+    const el = document.getElementById(id);
+    const icons = { waiting: '○', active: '◉', done: '✓', error: '✗' };
+    el.className = `prog-item ${state === 'active' ? 'active' : state === 'done' ? 'done' : state === 'error' ? 'error' : ''}`;
+    el.querySelector('.prog-icon').textContent = icons[state] || '○';
+  }
+
+  // ── Submit ─────────────────────────────
+  async function enviar() {
+    const btn = document.getElementById("btn");
+    btn.disabled = true; btn.classList.add("loading");
+
+    const ps = document.getElementById("progress-steps");
+    ps.classList.add("visible");
+    ['prog-upload','prog-doc','prog-face','prog-save'].forEach(id => setProgState(id, 'waiting'));
+    setProgState('prog-upload', 'active');
+
+    document.getElementById("result").style.display = "none";
+
+    const form = new FormData();
+    form.append("cedula", files.cedula);
+    form.append("selfie", files.selfie);
+    const nombre = document.getElementById("nombre").value.trim();
+    if (nombre) form.append("nombre", nombre);
+
+    // Simulate stage progression (real stages happen server-side)
+    setTimeout(() => setProgState('prog-upload', 'done'), 600);
+    setTimeout(() => setProgState('prog-doc', 'active'), 700);
+    setTimeout(() => setProgState('prog-doc', 'done'), 3500);
+    setTimeout(() => setProgState('prog-face', 'active'), 3600);
+    setTimeout(() => setProgState('prog-face', 'done'), 5500);
+    setTimeout(() => setProgState('prog-save', 'active'), 5600);
+
+    try {
+      const res  = await fetch("/upload", { method: "POST", body: form });
+      const data = await res.json();
+      setProgState('prog-save', 'done');
+      setTimeout(() => {
+        mostrarResultado(data);
+        if (data.ok) cargarHistorial();
+        btn.classList.remove("loading");
+        ps.classList.remove("visible");
+      }, 400);
+    } catch (e) {
+      setProgState('prog-save', 'error');
+      mostrarResultado({ ok: false, clasificacion: 'ERROR', errores: ["Error de conexión con el servidor."] });
+      btn.classList.remove("loading");
+    }
+  }
+
+  // ── Classification helpers ─────────────
+  function clasifMeta(c) {
+    const m = {
+      APROBADA_AUTOMATICA: { css: 'aprobada', icon: '✓', title: 'Identidad Verificada',  dotCss: 'dot-ok' },
+      REVISION_MANUAL:     { css: 'revision', icon: '◐', title: 'Revisión Manual',        dotCss: 'dot-warn' },
+      RECHAZADA:           { css: 'rechazada', icon: '✗', title: 'Verificación Rechazada', dotCss: 'dot-err' },
+      ERROR_FACIAL:        { css: 'error',    icon: '!', title: 'Error en Verificación',  dotCss: 'dot-err' },
+      ERROR:               { css: 'error',    icon: '!', title: 'Error en el Proceso',    dotCss: 'dot-err' },
+    };
+    return m[c] || m['ERROR'];
+  }
+
+  function confColor(v) {
+    if (v >= 0.90) return 'var(--success)';
+    if (v >= 0.70) return 'var(--warn)';
+    return 'var(--error)';
+  }
+
+  // ── Show result ────────────────────────
+  function mostrarResultado(data) {
+    const el = document.getElementById("result");
+    if (!data.ok) {
+      const errs = data.errores || [data.error || 'Error desconocido'];
+      el.innerHTML = `
+        <div class="classif-banner error">
+          <div class="classif-icon">!</div>
+          <div><div class="classif-label">ESTADO</div><div class="classif-title">Error en el Proceso</div></div>
+        </div>
+        <div class="result-body">
+          <div class="result-section">
+            <div class="section-title">ERRORES DETECTADOS</div>
+            <ul class="error-list">${errs.map(e => `<li>${e}</li>`).join('')}</ul>
+          </div>
+        </div>`;
+      el.style.display = "block"; return;
+    }
+
+    const meta = clasifMeta(data.clasificacion);
+    const conf = data.facial?.confidence_facial;
+    const confPct = conf != null ? Math.round(conf * 100) : null;
+
+    // Classification banner
+    let bannerExtra = '';
+    if (confPct != null) {
+      bannerExtra = `
+        <div class="conf-bar-wrap">
+          <div class="conf-value" style="color:${confColor(conf)}">${confPct}%</div>
+          <div class="conf-label">COINCIDENCIA</div>
+          <div class="conf-bar"><div class="conf-fill" style="width:${confPct}%"></div></div>
+        </div>`;
+    }
+
+    // Document fields section
+    let docSection = '';
+    if (data.documento?.campos && Object.keys(data.documento.campos).length > 0) {
+      const items = Object.entries(data.documento.campos).map(([k, v]) => `
+        <div class="result-item">
+          <div class="result-item-label">${k.replace(/([A-Z])/g,' $1').trim().toUpperCase()}</div>
+          <div class="result-item-value">${v.valor}</div>
+          ${v.confianza != null ? `<div class="result-item-conf">confianza: ${(v.confianza*100).toFixed(1)}%</div>` : ''}
+        </div>`).join('');
+      docSection = `
+        <div class="result-section">
+          <div class="section-title">CAMPOS EXTRAÍDOS — DOCUMENT INTELLIGENCE</div>
+          <div class="result-grid">${items}</div>
+        </div>`;
+    }
+
+    // Facial section
+    let faceSection = '';
+    if (data.facial) {
+      const f = data.facial;
+      const clasifBadge = {
+        APROBADA_AUTOMATICA: '<span class="badge badge-ok">APROBADA</span>',
+        REVISION_MANUAL:     '<span class="badge badge-warn">REVISIÓN</span>',
+        RECHAZADA:           '<span class="badge badge-err">RECHAZADA</span>',
+      }[data.clasificacion] || '<span class="badge badge-err">ERROR</span>';
+      faceSection = `
+        <div class="result-section">
+          <div class="section-title">VERIFICACIÓN FACIAL — FACE API</div>
+          <div class="result-row"><span class="result-key">ROSTRO EN DOCUMENTO</span><span class="result-value">${f.rostro_documento ? '<span class="badge badge-ok">DETECTADO</span>' : '<span class="badge badge-err">NO DETECTADO</span>'}</span></div>
+          <div class="result-row"><span class="result-key">ROSTRO EN SELFIE</span><span class="result-value">${f.rostro_selfie ? '<span class="badge badge-ok">DETECTADO</span>' : '<span class="badge badge-err">NO DETECTADO</span>'}</span></div>
+          <div class="result-row"><span class="result-key">COINCIDENCIA BIOMÉTRICA</span><span class="result-value" style="color:${confColor(conf)};font-size:14px;font-weight:600">${confPct}%</span></div>
+          <div class="result-row"><span class="result-key">CALIDAD SELFIE</span><span class="result-value">${f.blur_selfie}</span></div>
+          <div class="result-row"><span class="result-key">CLASIFICACIÓN FINAL</span><span class="result-value">${clasifBadge}</span></div>
+        </div>`;
+    }
+
+    // Metadata
+    const ts = data.timestamp ? new Date(data.timestamp).toLocaleString('es-DO') : '—';
+    const metaSection = `
+      <div class="result-section">
+        <div class="section-title">METADATOS DE LA SOLICITUD</div>
+        <div class="result-row"><span class="result-key">ID SOLICITUD</span><span class="result-value">${data.solicitud_id}</span></div>
+        ${data.nombre ? `<div class="result-row"><span class="result-key">NOMBRE</span><span class="result-value">${data.nombre}</span></div>` : ''}
+        <div class="result-row"><span class="result-key">TIMESTAMP</span><span class="result-value">${ts}</span></div>
+        <div class="result-row"><span class="result-key">JSON GUARDADO</span><span class="result-value">${data.json_blob || '—'}</span></div>
+        <div class="result-row"><span class="result-key">BLOB DOCUMENTO</span><span class="result-value">${data.blob_documento}</span></div>
+        <div class="result-row"><span class="result-key">BLOB SELFIE</span><span class="result-value">${data.blob_selfie}</span></div>
+      </div>`;
+
+    // Errors
+    let errSection = '';
+    if (data.errores && data.errores.length > 0) {
+      errSection = `
+        <div class="result-section">
+          <div class="section-title">ADVERTENCIAS</div>
+          <ul class="error-list">${data.errores.map(e => `<li>${e}</li>`).join('')}</ul>
+        </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="classif-banner ${meta.css}">
+        <div class="classif-icon">${meta.icon}</div>
+        <div>
+          <div class="classif-label">RESULTADO DE VERIFICACIÓN KYC</div>
+          <div class="classif-title">${meta.title}</div>
+        </div>
+        ${bannerExtra}
+      </div>
+      <div class="result-body">
+        ${docSection}
+        ${faceSection}
+        ${metaSection}
+        ${errSection}
+      </div>`;
+    el.style.display = "block";
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── History ────────────────────────────
+  async function cargarHistorial() {
+    try {
+      const res  = await fetch("/solicitudes");
+      const data = await res.json();
+      if (!data.total) return;
+      const hc  = document.getElementById("history-card");
+      const hl  = document.getElementById("history-list");
+      const cnt = document.getElementById("history-count");
+      hc.style.display = "block";
+      cnt.textContent  = data.total;
+      // Fetch details for last 5
+      const recientes = data.ids.slice(-5).reverse();
+      const detalles = await Promise.all(
+        recientes.map(id => fetch(`/solicitud/${id}`).then(r => r.json()).catch(() => null))
+      );
+      hl.innerHTML = detalles.map((d, i) => {
+        const meta = clasifMeta(d?.clasificacion || 'ERROR');
+        const conf = d?.facial?.confidence_facial;
+        const confStr = conf != null ? `${Math.round(conf*100)}%` : '';
+        const nombre = d?.nombre ? ` · ${d.nombre}` : '';
+        return `
+          <div class="history-item" onclick="verDetalle('${recientes[i]}')">
+            <div class="history-dot ${meta.dotCss}"></div>
+            <span class="history-id">onb_sol_${recientes[i]}</span>
+            ${nombre ? `<span style="color:var(--text3);font-size:10px">${nombre}</span>` : ''}
+            ${confStr ? `<span style="color:var(--text2);margin-left:auto;margin-right:8px">${confStr}</span>` : ''}
+            <span class="history-class" style="color:${meta.css==='aprobada'?'var(--success)':meta.css==='revision'?'var(--warn)':'var(--error)'}">${d?.clasificacion || '—'}</span>
+          </div>`;
+      }).join('');
+    } catch(e) {}
+  }
+
+  async function verDetalle(sid) {
+    try {
+      const res  = await fetch(`/solicitud/${sid}`);
+      const data = await res.json();
+      mostrarResultado({ ok: true, ...data });
+    } catch(e) {}
+  }
+
+  function resetForm() {
+    files.cedula = null; files.selfie = null;
+    ['cedula','selfie'].forEach(t => {
+      document.getElementById(`zone-${t}`).classList.remove("has-file");
+      document.getElementById(`name-${t}`).textContent = "";
+      document.getElementById(`prev-${t}`).src = "";
+      document.getElementById(`input-${t}`).value = "";
+    });
+    document.getElementById("nombre").value = "";
+    document.getElementById("result").style.display = "none";
+    document.getElementById("dot1").className = "step-dot active";
+    document.getElementById("dot2").className = "step-dot";
+    document.getElementById("dot3").className = "step-dot";
+    document.getElementById("step-label").textContent = "CARGA DE DOCUMENTOS";
+    checkBtn();
+  }
+
+  cargarHistorial();
+</script>
+</body>
+</html>
