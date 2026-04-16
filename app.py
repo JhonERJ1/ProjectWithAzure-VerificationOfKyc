@@ -5,6 +5,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, send_from_directory
 from dotenv import load_dotenv
+from azure.core.exceptions import ResourceExistsError
 
 load_dotenv()
 
@@ -41,7 +42,7 @@ face_cliente = FaceClient(
 for cont in [CONT_DOCS, CONT_SELFIES, CONT_RESULTADOS]:
     try:
         blob_service.create_container(cont)
-    except Exception:
+    except ResourceExistsError:
         pass
 
 EXTENSIONES = {"png", "jpg", "jpeg", "webp"}
