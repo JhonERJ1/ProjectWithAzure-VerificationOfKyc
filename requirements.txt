@@ -1,1 +1,8 @@
-
+flask
+python-dotenv
+azure-ai-documentintelligence
+azure-core
+azure-storage-blob
+azure-cognitiveservices-vision-face
+msrest
+gunicorn
